@@ -22,7 +22,7 @@
     "publisher": "Cadence",
     "copyright": "Copyright © 2026 the Cadence authors",
     "category": "Music",
-    "license": "MIT",
+    "license": "GPL-3.0-or-later",
     "licenseFile": "../LICENSE",
     "shortDescription": "An Apple Music–style client for Navidrome",
     "longDescription": "Cadence is a fast, native-feeling desktop music player for Navidrome servers, with an Apple Music–style interface, synced lyrics, animated album artwork and gapless playback.",

@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "description": "An Apple Music–style desktop client for Navidrome",
-  "license": "MIT",
+  "license": "GPL-3.0-or-later",
   "type": "module",
   "scripts": {
     "dev": "vite",

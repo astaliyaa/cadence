@@ -144,6 +144,6 @@ dev/mock-server.mjs   fake Navidrome for development
 
 ## License
 
-[MIT](LICENSE). Cadence bundles the [Inter](https://rsms.me/inter/) typeface (SIL Open Font License 1.1) and uses [Lucide](https://lucide.dev) icons (ISC), [hls.js](https://github.com/video-dev/hls.js) (Apache-2.0), React (MIT) and Tauri (MIT/Apache-2.0).
+[GNU GPL v3.0 or later](LICENSE). Cadence bundles the [Inter](https://rsms.me/inter/) typeface (SIL Open Font License 1.1) and uses [Lucide](https://lucide.dev) icons (ISC), [hls.js](https://github.com/video-dev/hls.js) (Apache-2.0), React (MIT) and Tauri (MIT/Apache-2.0).
 
 Cadence isn't affiliated with Apple or Navidrome. Animated artwork and lyrics come from third-party services; see the notes above.
