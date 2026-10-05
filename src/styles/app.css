@@ -2093,10 +2093,10 @@ div:has(> .tt-row.selected) + div > .tt-row::before {
   color: rgba(255, 255, 255, 0.34);
   transform-origin: left center;
   scale: 0.965;
-  transition-property: transform, color, scale, filter, background;
+  transition-property: translate, color, scale, filter, background;
   transition-duration: 0.7s, 0.4s, 0.6s, 0.45s, 0.15s;
   transition-timing-function: var(--ease-spring);
-  will-change: transform;
+  will-change: translate;
   overflow-wrap: anywhere;
 }
 .lyrics.full .lyric-line {

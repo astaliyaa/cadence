@@ -18,6 +18,8 @@ interface AuthState {
   client: Subsonic | null;
   serverInfo: { type?: string; version?: string } | null;
   extensions: string[];
+  /** Whether `extensions` has been fetched from the server yet. */
+  extensionsLoaded: boolean;
   signIn: (client: Subsonic, info: { type?: string; serverVersion?: string }) => void;
   signOut: () => void;
   setExtensions: (ext: string[]) => void;
@@ -30,15 +32,16 @@ export const useAuth = create<AuthState>((set) => ({
   client: initial ? new Subsonic(initial) : null,
   serverInfo: null,
   extensions: [],
+  extensionsLoaded: false,
   signIn: (client, info) => {
     localStorage.setItem(KEY, JSON.stringify(client.creds));
     set({ creds: client.creds, client, serverInfo: { type: info.type, version: info.serverVersion } });
   },
   signOut: () => {
     localStorage.removeItem(KEY);
-    set({ creds: null, client: null, serverInfo: null, extensions: [] });
+    set({ creds: null, client: null, serverInfo: null, extensions: [], extensionsLoaded: false });
   },
-  setExtensions: (extensions) => set({ extensions }),
+  setExtensions: (extensions) => set({ extensions, extensionsLoaded: true }),
 }));
 
 /** The signed-in client. Only call from screens rendered behind the sign-in gate. */

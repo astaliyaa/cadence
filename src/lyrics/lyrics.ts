@@ -123,10 +123,13 @@ async function fetchLyrics(song: Song): Promise<Lyrics | null> {
 
 export function useLyrics(song: Song | undefined) {
   const lrclibOn = useSettings((s) => s.lrclib);
+  // Which lyrics endpoint to use depends on the server's extensions, and results
+  // are cached for good, so wait for those rather than caching a wrong answer.
+  const ready = useAuth((s) => s.extensionsLoaded);
   return useQuery({
     queryKey: ["lyrics", song?.id, lrclibOn],
     queryFn: () => fetchLyrics(song!),
-    enabled: !!song,
+    enabled: !!song && ready,
     staleTime: Infinity,
     gcTime: 60 * 60_000,
     retry: 0,

@@ -100,11 +100,14 @@ function SyncedLyrics({ lines: raw, variant }: { lines: LyricLine[]; variant: Pr
     lineRefs.current.forEach((el, i) => {
       if (!el) return;
       const dist = i - active;
-      // Delay only the movement (transform, the first of the five transitioned
+      // Delay only the movement (translate, the first of the five transitioned
       // properties in app.css), never colour, scale or the hover highlight.
       el.style.transitionDelay = ripple && dist > 0 ? `${Math.min(dist, 8) * 45}ms, 0s, 0s, 0s, 0s` : "0s";
       el.style.transitionDuration = animate ? "" : "0ms";
-      el.style.transform = `translate3d(0, ${base}px, 0)`;
+      // `translate`, not `transform`: a transform is applied inside the line's
+      // `scale`, so the inactive lines (scaled down) would move less than the
+      // active one and drift into it further down the song.
+      el.style.translate = `0 ${base}px`;
       if (blurOn) {
         const blur = userScrolling.current || dist === 0 ? 0 : Math.min(Math.abs(dist), 5) * 0.7;
         el.style.filter = blur ? `blur(${blur}px)` : "";
@@ -186,10 +189,10 @@ function SyncedLyrics({ lines: raw, variant }: { lines: LyricLine[]; variant: Pr
 }
 
 export function LyricsView({ song, variant }: Props) {
-  const { data, isLoading } = useLyrics(song);
+  const { data, isPending } = useLyrics(song);
 
   if (!song) return <div className={`lyrics-empty ${variant}`}>Nothing playing</div>;
-  if (isLoading) return <div className={`lyrics-empty ${variant}`}>Loading lyrics…</div>;
+  if (isPending) return <div className={`lyrics-empty ${variant}`}>Loading lyrics…</div>;
   if (!data || !data.lines.some((l) => l.text)) return <div className={`lyrics-empty ${variant}`}>Lyrics aren't available for this song.</div>;
 
   if (!data.synced) {
