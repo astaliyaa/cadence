@@ -24,7 +24,7 @@ You need an Apple Developer Program membership. Everything happens in a browser 
 Create a private key and a signing request in Git Bash, from the repo root:
 
 ```bash
-mkdir -p signing && openssl req -new -newkey rsa:2048 -nodes -keyout signing/dist.key -out signing/dist.csr -subj "/CN=Cadence Distribution/C=US"
+mkdir -p signing && MSYS_NO_PATHCONV=1 openssl req -new -newkey rsa:2048 -nodes -keyout signing/dist.key -out signing/dist.csr -subj "/CN=Cadence Distribution/C=US"
 ```
 
 Then in the browser: **Certificates → + → Apple Distribution**, upload `signing/dist.csr`, and download the certificate as `signing/distribution.cer`. Then convert it to a password-protected `.p12`:
