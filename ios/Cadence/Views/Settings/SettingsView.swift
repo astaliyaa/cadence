@@ -37,6 +37,8 @@ struct SettingsView: View {
                 Text("Transcoding happens on your Navidrome server. Sound Check evens out loudness using ReplayGain tags. Scrobbles update play counts and are forwarded to Last.fm or ListenBrainz if Navidrome is set up for them.")
             }
 
+            DownloadSettingsSection()
+
             Section {
                 Toggle("Find Lyrics on LRCLIB", isOn: $settings.lrclib)
             } header: {

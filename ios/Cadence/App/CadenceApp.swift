@@ -2,7 +2,9 @@ import SwiftUI
 
 @main
 struct CadenceApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var session = Session.shared
+    @State private var downloads = DownloadManager.shared
     @State private var player = PlayerModel.shared
     @State private var settings = AppSettings.shared
     @State private var favorites = Favorites.shared
@@ -18,6 +20,7 @@ struct CadenceApp: App {
                 .environment(favorites)
                 .environment(toast)
                 .environment(router)
+                .environment(downloads)
         }
     }
 }
@@ -76,10 +79,15 @@ struct MainTabView: View {
             }
         }
         .modifier(BottomAccessory())
-        .fullScreenCover(isPresented: $router.showNowPlaying) {
+        // A native card (like Apple Music): swipe down from anywhere to close it.
+        .sheet(isPresented: $router.showNowPlaying) {
             NowPlayingView()
+                .presentationDetents([.large])
+                .presentationDragIndicator(.hidden)
+                .presentationBackground(.black)
         }
-        .sheet(item: $router.addToPlaylist) { batch in
+        // While the player is open, it presents this sheet itself.
+        .sheet(item: router.showNowPlaying ? .constant(nil) : $router.addToPlaylist) { batch in
             AddToPlaylistSheet(batch: batch)
         }
         .overlay(alignment: .bottom) {

@@ -49,6 +49,8 @@ final class AppSettings {
     var motionAutoToken: Bool { didSet { defaults.set(motionAutoToken, forKey: "motionAutoToken") } }
     var motionToken: String { didSet { defaults.set(motionToken, forKey: "motionToken") } }
     var storefront: String { didSet { defaults.set(storefront, forKey: "storefront") } }
+    var downloadQuality: DownloadQuality { didSet { defaults.set(downloadQuality.rawValue, forKey: "downloadQuality") } }
+    var downloadOverCellular: Bool { didSet { defaults.set(downloadOverCellular, forKey: "downloadOverCellular") } }
 
     private init() {
         let d = UserDefaults.standard
@@ -66,5 +68,7 @@ final class AppSettings {
         motionAutoToken = bool("motionAutoToken", true)
         motionToken = d.string(forKey: "motionToken") ?? ""
         storefront = d.string(forKey: "storefront") ?? "us"
+        downloadQuality = DownloadQuality(rawValue: d.string(forKey: "downloadQuality") ?? "") ?? .original
+        downloadOverCellular = bool("downloadOverCellular", false)
     }
 }

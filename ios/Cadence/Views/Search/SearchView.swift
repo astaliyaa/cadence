@@ -64,7 +64,7 @@ struct SearchView: View {
                     ForEach(Array(songs.enumerated()), id: \.element.id) { i, song in
                         SongRow(song: song, onTap: { player.play(songs, startAt: i, source: "“\(query)”") })
                             .contextMenu { SongMenuItems(songs: [song]) }
-                        Divider().padding(.leading, 58)
+                        Divider().padding(.leading, 62)
                     }
                 }
                 .padding(.horizontal)

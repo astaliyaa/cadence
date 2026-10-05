@@ -78,6 +78,9 @@ struct PlaylistView: View {
         .listStyle(.plain)
         .refreshable { await load(force: true) }
         .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                DownloadButton(songs: songs)
+            }
             if editable {
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {

@@ -17,6 +17,7 @@ struct LibraryView: View {
         Row(title: "Songs", icon: "music.note", route: .songs),
         Row(title: "Genres", icon: "guitars", route: .genres),
         Row(title: "Favorites", icon: "heart", route: .favorites),
+        Row(title: "Downloaded", icon: "arrow.down.circle", route: .downloaded),
     ]
 
     private let columns = [GridItem(.flexible(), spacing: 16), GridItem(.flexible(), spacing: 16)]

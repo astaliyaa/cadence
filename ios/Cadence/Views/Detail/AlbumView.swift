@@ -52,7 +52,7 @@ struct AlbumView: View {
                             )
                             .padding(.horizontal)
                             .contextMenu { SongMenuItems(songs: [song], hideAlbum: true) }
-                            Divider().padding(.leading, 54)
+                            Divider().padding(.leading, 56)
                         }
                     }
                 }
@@ -70,6 +70,7 @@ struct AlbumView: View {
         }
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
+                DownloadButton(songs: songs)
                 let loved = favorites.isLoved(album.id, server: album.starred)
                 Button { favorites.toggle(.album, id: album.id, current: loved) } label: {
                     Image(systemName: loved ? "heart.fill" : "heart")

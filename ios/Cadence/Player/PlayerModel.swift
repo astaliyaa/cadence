@@ -241,6 +241,8 @@ final class PlayerModel {
     // MARK: - Engine
 
     private func streamURL(for song: Song, forceTranscode: Bool = false) -> URL? {
+        // Downloaded songs play from the device, with or without a connection.
+        if !forceTranscode, let local = DownloadManager.shared.localURL(for: song.id) { return local }
         guard let api = Session.shared.api else { return nil }
         // Formats AVPlayer can't decode get transcoded by Navidrome.
         let unsupported: Set<String> = ["ogg", "oga", "opus", "wma", "ape", "wv", "dsf", "dff", "mpc", "webm"]

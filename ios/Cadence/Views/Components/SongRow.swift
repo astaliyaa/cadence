@@ -24,11 +24,13 @@ struct SongRow: View {
                 Image(systemName: "ellipsis")
                     .font(.body.weight(.semibold))
                     .foregroundStyle(.secondary)
-                    .frame(width: 32, height: 36)
+                    .frame(width: 34, height: 44)
                     .contentShape(Rectangle())
             }
         }
-        .padding(.vertical, 2)
+        // Standard iOS row heights: ~52pt for numbered album tracks, ~64pt with artwork.
+        .padding(.vertical, trackNumber != nil ? 4 : 2)
+        .frame(minHeight: trackNumber != nil ? 52 : 64)
     }
 
     private var content: some View {
@@ -44,18 +46,18 @@ struct SongRow: View {
                             .foregroundStyle(.secondary)
                     }
                 }
-                .frame(width: 26)
+                .frame(width: 28)
             } else if showArtwork {
                 ZStack {
-                    ArtworkView(id: song.coverArt, size: 46, cornerRadius: 5)
+                    ArtworkView(id: song.coverArt, size: 50, cornerRadius: 6)
                     if isCurrent {
-                        RoundedRectangle(cornerRadius: 5).fill(.black.opacity(0.35)).frame(width: 46, height: 46)
+                        RoundedRectangle(cornerRadius: 6).fill(.black.opacity(0.35)).frame(width: 50, height: 50)
                         NowPlayingIndicator(playing: player.isPlaying).foregroundStyle(.white).tint(.white)
                     }
                 }
             }
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 4) {
                     Text(song.title)
                         .lineLimit(1)
@@ -71,6 +73,8 @@ struct SongRow: View {
             }
 
             Spacer(minLength: 4)
+
+            DownloadIndicator(songID: song.id)
 
             if favorites.isLoved(song.id, server: song.starred) {
                 Image(systemName: "heart.fill")
@@ -109,6 +113,20 @@ struct SongMenuItems: View {
         }
         Button { Router.shared.addToPlaylist = SongBatch(songs: songs) } label: {
             Label("Add to Playlist…", systemImage: "text.badge.plus")
+        }
+        switch DownloadManager.shared.state(of: songs) {
+        case .downloaded:
+            Button(role: .destructive) { DownloadManager.shared.remove(songs) } label: {
+                Label("Remove Download", systemImage: "trash")
+            }
+        case .downloading:
+            Button { DownloadManager.shared.cancelDownloads(songs) } label: {
+                Label("Stop Downloading", systemImage: "stop.circle")
+            }
+        case .none:
+            Button { DownloadManager.shared.download(songs) } label: {
+                Label("Download", systemImage: "arrow.down.circle")
+            }
         }
         if let song = single {
             Divider()
@@ -160,6 +178,19 @@ struct AlbumMenuItems: View {
             }
         } label: {
             Label("Add to Playlist…", systemImage: "text.badge.plus")
+        }
+        Button {
+            Task {
+                if let songs = await Actions.album(album.id)?.song { DownloadManager.shared.download(songs) }
+            }
+        } label: {
+            Label("Download", systemImage: "arrow.down.circle")
+        }
+        let downloadedHere = DownloadManager.shared.downloaded.values.filter { $0.song.albumId == album.id }.map(\.song)
+        if !downloadedHere.isEmpty {
+            Button(role: .destructive) { DownloadManager.shared.remove(downloadedHere) } label: {
+                Label("Remove Download", systemImage: "trash")
+            }
         }
         if let artistID = album.artistId {
             Divider()

@@ -17,6 +17,8 @@ enum Route: Hashable {
     case playlists
     case genres
     case favorites
+    case downloaded
+    case downloadedAlbum(String)
 }
 
 struct SongBatch: Identifiable {
@@ -75,6 +77,8 @@ struct RouteView: View {
         case .playlists: PlaylistsListView()
         case .genres: GenresView()
         case .favorites: FavoritesView()
+        case .downloaded: DownloadedView()
+        case .downloadedAlbum(let key): DownloadedAlbumView(albumKey: key)
         }
     }
 }

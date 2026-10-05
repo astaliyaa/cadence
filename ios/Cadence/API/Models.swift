@@ -44,6 +44,7 @@ struct Song: Codable, Identifiable, Hashable {
     var samplingRate: Int?
     var suffix: String?
     var contentType: String?
+    var size: Int64?
     var starred: String?
     var playCount: Int?
     var replayGain: ReplayGain?

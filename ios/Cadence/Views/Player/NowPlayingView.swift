@@ -7,11 +7,12 @@ struct NowPlayingView: View {
 
     @Environment(PlayerModel.self) private var player
     @Environment(Favorites.self) private var favorites
+    @Environment(Router.self) private var router
     @Environment(\.dismiss) private var dismiss
     @State private var mode: Mode = .artwork
-    @State private var dragOffset: CGFloat = 0
 
     var body: some View {
+        @Bindable var router = router
         let song = player.current
         GeometryReader { geo in
             let artSize = min(geo.size.width - 56, geo.size.height * 0.42)
@@ -51,9 +52,11 @@ struct NowPlayingView: View {
         }
         .foregroundStyle(.white)
         .environment(\.colorScheme, .dark)
-        .offset(y: dragOffset)
         .animation(.spring(response: 0.45, dampingFraction: 0.85), value: mode)
         .onChange(of: player.current == nil) { _, empty in if empty { dismiss() } }
+        .sheet(item: $router.addToPlaylist) { batch in
+            AddToPlaylistSheet(batch: batch)
+        }
     }
 
     // MARK: pieces
@@ -66,19 +69,9 @@ struct NowPlayingView: View {
             .padding(.bottom, 4)
             .frame(maxWidth: .infinity)
             .contentShape(Rectangle())
-            .gesture(dismissDrag)
-    }
-
-    private var dismissDrag: some Gesture {
-        DragGesture()
-            .onChanged { value in dragOffset = max(0, value.translation.height) }
-            .onEnded { value in
-                if value.translation.height > 140 || value.predictedEndTranslation.height > 320 {
-                    dismiss()
-                } else {
-                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { dragOffset = 0 }
-                }
-            }
+            .onTapGesture { dismiss() }
+            .accessibilityLabel("Close Now Playing")
+            .accessibilityAddTraits(.isButton)
     }
 
     private func bigArtwork(_ song: Song?, size: CGFloat) -> some View {
@@ -87,7 +80,6 @@ struct NowPlayingView: View {
             .scaleEffect(player.isPlaying ? 1 : 0.78)
             .animation(.spring(response: 0.5, dampingFraction: 0.7), value: player.isPlaying)
             .frame(maxWidth: .infinity)
-            .gesture(dismissDrag)
     }
 
     private func titleRow(_ song: Song?) -> some View {
@@ -137,7 +129,6 @@ struct NowPlayingView: View {
                 menuButton(song)
             }
         }
-        .gesture(dismissDrag)
     }
 
     private func favoriteButton(_ song: Song) -> some View {

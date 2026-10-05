@@ -35,9 +35,24 @@ actor ImageLoader {
         if let hit = cached(url) { return hit }
         if let running = inflight[url] { return await running.value }
         let session = self.session
+        // Covers saved with downloads: used directly for small artwork, and as the
+        // fallback when the server can't be reached (offline / away from home).
+        let coverID = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "id" }?.value
+        let localFile = coverID.map { DownloadManager.coverFile($0) }
         let task = Task<UIImage?, Never> {
-            guard let result = try? await session.data(from: url) else { return nil }
-            return Self.decode(result.0, maxPixel: maxPixel)
+            if let localFile, maxPixel <= 640, let data = try? Data(contentsOf: localFile),
+               let image = Self.decode(data, maxPixel: maxPixel) {
+                return image
+            }
+            let request = URLRequest(url: url, timeoutInterval: 10)
+            if let result = try? await session.data(for: request), !result.0.isEmpty,
+               let image = Self.decode(result.0, maxPixel: maxPixel) {
+                return image
+            }
+            if let localFile, let data = try? Data(contentsOf: localFile) {
+                return Self.decode(data, maxPixel: maxPixel)
+            }
+            return nil
         }
         inflight[url] = task
         let image = await task.value
