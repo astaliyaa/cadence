@@ -37,7 +37,31 @@ jobs:
   build:
     name: Compile
     runs-on: macos-latest
+    outputs:
+      signing_ready: ${{ steps.signing.outputs.ready }}
     steps:
+      - name: Check signing setup
+        id: signing
+        env:
+          IOS_TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
+          IOS_DIST_CERT_P12: ${{ secrets.IOS_DIST_CERT_P12 }}
+          IOS_DIST_CERT_PASSWORD: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
+          IOS_PROFILE: ${{ secrets.IOS_PROFILE }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+        run: |
+          missing=""
+          for name in IOS_TEAM_ID IOS_DIST_CERT_P12 IOS_DIST_CERT_PASSWORD IOS_PROFILE ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8; do
+            if [ -z "${!name}" ]; then missing="$missing $name"; fi
+          done
+          if [ -n "$missing" ]; then
+            echo "::notice title=TestFlight upload skipped::Missing secrets:$missing (see ios/README.md)"
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/checkout@v5
 
       - uses: maxim-lobanov/setup-xcode@v1
@@ -109,37 +133,10 @@ jobs:
           name: ios-build-log
           path: ios/build.log
 
-  signing:
-    name: Signing configured?
-    runs-on: ubuntu-latest
-    outputs:
-      ready: ${{ steps.check.outputs.ready }}
-    steps:
-      - id: check
-        env:
-          IOS_TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
-          IOS_DIST_CERT_P12: ${{ secrets.IOS_DIST_CERT_P12 }}
-          IOS_DIST_CERT_PASSWORD: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
-          IOS_PROFILE: ${{ secrets.IOS_PROFILE }}
-          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
-          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
-          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
-        run: |
-          missing=""
-          for name in IOS_TEAM_ID IOS_DIST_CERT_P12 IOS_DIST_CERT_PASSWORD IOS_PROFILE ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8; do
-            [ -z "${!name}" ] && missing="$missing $name"
-          done
-          if [ -n "$missing" ]; then
-            echo "::notice title=TestFlight upload skipped::Missing secrets:$missing (see ios/README.md)"
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "ready=true" >> "$GITHUB_OUTPUT"
-          fi
-
   testflight:
     name: TestFlight
-    needs: [build, signing]
-    if: needs.signing.outputs.ready == 'true' && github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: build
+    if: needs.build.outputs.signing_ready == 'true' && github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: macos-latest
     env:
       CADENCE_TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
