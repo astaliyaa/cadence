@@ -68,9 +68,10 @@ jobs:
           annotate() {
             local body
             body=$(cat)
-            body="${body//'%'/'%25'}"
-            body="${body//$'\r'/'%0D'}"
-            body="${body//$'\n'/'%0A'}"
+            # Unquoted replacements: macOS's bash 3.2 would keep the quotes literally.
+            body="${body//%/%25}"
+            body="${body//$'\r'/%0D}"
+            body="${body//$'\n'/%0A}"
             echo "::$1 title=$2::$body"
           }
           [ -f build.log ] || exit 0
@@ -233,7 +234,7 @@ jobs:
         working-directory: ios
         run: |
           body=$(cat archive.log export.log 2>/dev/null | grep -iE 'error|failed|invalid' | sort -u | head -60)
-          body="${body//'%'/'%25'}"; body="${body//$'\n'/'%0A'}"
+          body="${body//%/%25}"; body="${body//$'\n'/%0A}"
           [ -n "$body" ] && echo "::error title=Signing / upload errors::$body" || true
 
       - name: Clean up keychain
