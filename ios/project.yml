@@ -1,0 +1,63 @@
+# XcodeGen spec: `xcodegen generate` turns this into Cadence.xcodeproj.
+# The CI workflow (.github/workflows/ios.yml) runs it on a macOS runner, so no
+# Mac is needed to work on the app. Two values come from the environment:
+#   CADENCE_BUNDLE_ID  e.g. com.yourname.cadence (must match your App ID)
+#   CADENCE_TEAM_ID    your Apple Developer Team ID (only needed for signing)
+name: Cadence
+
+options:
+  deploymentTarget:
+    iOS: "18.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    DEVELOPMENT_TEAM: "${CADENCE_TEAM_ID}"
+
+targets:
+  Cadence:
+    type: application
+    platform: iOS
+    deploymentTarget: "18.0"
+    sources:
+      - path: Cadence
+    info:
+      path: Cadence/Info.plist
+      properties:
+        CFBundleDisplayName: Cadence
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSRequiresIPhoneOS: true
+        UILaunchScreen: {}
+        UIBackgroundModes: [audio]
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        UIApplicationSupportsIndirectInputEvents: true
+        ITSAppUsesNonExemptEncryption: false
+        NSLocalNetworkUsageDescription: Cadence connects to your Navidrome server on your local network.
+        NSAppTransportSecurity:
+          # Many home Navidrome servers are plain http on the LAN.
+          NSAllowsArbitraryLoads: true
+          NSAllowsLocalNetworking: true
+    settings:
+      base:
+        PRODUCT_NAME: Cadence
+        PRODUCT_BUNDLE_IDENTIFIER: "${CADENCE_BUNDLE_ID}"
+        TARGETED_DEVICE_FAMILY: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        CODE_SIGN_STYLE: Automatic
+        ENABLE_PREVIEWS: YES
+        GENERATE_INFOPLIST_FILE: NO
+
+schemes:
+  Cadence:
+    build:
+      targets:
+        Cadence: all
+    run:
+      config: Debug
+    archive:
+      config: Release

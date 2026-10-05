@@ -6,6 +6,8 @@ An Apple Music–style desktop client for **Navidrome**, built with [Tauri 2](ht
 - **Fast:** uses the system WebView instead of bundling Chromium (small install, ~10 MB). Every long list and grid is virtualised. Cover art is requested at a fixed set of sizes so it can be cached (configurable quality, up to full-resolution originals). Progress bars and lyrics animate without re-rendering React.
 - **Navidrome-native:** uses the Subsonic API with OpenSubsonic extensions, including synced lyrics, ReplayGain, release types, lossless/hi-res info and favorites.
 
+> **iPhone app:** a native SwiftUI version lives in [`ios/`](ios/). It's built and shipped to TestFlight by GitHub Actions, so no Mac is needed. See [ios/README.md](ios/README.md).
+
 ## Features
 
 | | |
