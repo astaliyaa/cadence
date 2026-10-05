@@ -52,7 +52,7 @@ openssl pkcs12 -export -inkey signing/dist.key -in signing/dist.pem -out signing
 - Note the **Key ID** and the **Issuer ID** shown above the table.
 
 ### 6. Add the secrets to GitHub
-Repository → **Settings → Secrets and variables → Actions**:
+Repository → **Settings → Secrets and variables → Actions**. Put `IOS_BUNDLE_ID` on the **Variables** tab. Put the other seven on the **Secrets** tab under **Repository secrets**, not *Environment secrets* and not the Variables tab. If a build says "TestFlight upload skipped — missing secrets", one of them is in the wrong place.
 
 | Kind | Name | Value |
 |---|---|---|
