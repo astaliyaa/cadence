@@ -38,9 +38,9 @@ targets:
         ITSAppUsesNonExemptEncryption: false
         NSLocalNetworkUsageDescription: Cadence connects to your Navidrome server on your local network.
         NSAppTransportSecurity:
-          # Many home Navidrome servers are plain http on the LAN.
+          # Many home Navidrome servers are plain http. (Don't add NSAllowsLocalNetworking:
+          # when it's present, iOS ignores NSAllowsArbitraryLoads.)
           NSAllowsArbitraryLoads: true
-          NSAllowsLocalNetworking: true
     settings:
       base:
         PRODUCT_NAME: Cadence
