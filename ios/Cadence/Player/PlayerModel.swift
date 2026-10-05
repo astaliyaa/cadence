@@ -62,7 +62,11 @@ final class PlayerModel {
     @ObservationIgnored private var onCellular = false
     @ObservationIgnored private var lastPositionSave = Date.distantPast
     @ObservationIgnored private var artwork: MPMediaItemArtwork?
+    @ObservationIgnored private var artworkImage: UIImage?
     @ObservationIgnored private var artworkFor: String?
+    /// Apple Music motion artwork for the current album (lock screen, iOS 26+).
+    @ObservationIgnored private var motion: (albumID: String, videos: MotionVideos)?
+    @ObservationIgnored private var motionLookupFor: String?
     private let pathMonitor = NWPathMonitor()
 
     private var settings: AppSettings { AppSettings.shared }
@@ -577,11 +581,36 @@ final class PlayerModel {
         guard artworkFor != song.coverArt else { return }
         artworkFor = song.coverArt
         artwork = nil
+        artworkImage = nil
+        loadMotionArtwork()
         guard let url = api.coverURL(song.coverArt, size: 600) else { return }
         let cover = song.coverArt
         Task {
             guard let image = await ImageLoader.shared.image(for: url, maxPixel: 600), self.artworkFor == cover else { return }
             self.artwork = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+            self.artworkImage = image
+            self.updateNowPlayingInfo()
+        }
+    }
+
+    /// Looks up the album's motion artwork so the lock screen can animate it.
+    private func loadMotionArtwork() {
+        guard let song = current, let albumID = song.albumId, let album = song.album else {
+            motion = nil
+            motionLookupFor = nil
+            return
+        }
+        guard motionLookupFor != albumID else { return }
+        motionLookupFor = albumID
+        motion = nil
+        let s = settings
+        guard s.motionEnabled, s.motionAutoToken || !s.motionToken.isEmpty else { return }
+        let config = MotionService.Config(autoToken: s.motionAutoToken, token: s.motionToken, storefront: s.storefront)
+        let artist = song.albumArtistName
+        Task {
+            let videos = await MotionService.shared.videos(albumID: albumID, album: album, artist: artist, config: config)
+            guard self.motionLookupFor == albumID, let videos else { return }
+            self.motion = (albumID, videos)
             self.updateNowPlayingInfo()
         }
     }
@@ -600,8 +629,41 @@ final class PlayerModel {
             MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? 1.0 : 0.0,
         ]
         if let artwork { info[MPMediaItemPropertyArtwork] = artwork }
+        #if compiler(>=6.2)
+        if #available(iOS 26.0, *), let motion, motion.albumID == song.albumId {
+            addAnimatedArtwork(to: &info, motion)
+        }
+        #endif
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info
     }
+
+    #if compiler(>=6.2)
+    /// iOS 26 lock screen / Now Playing animated artwork. iOS asks for the preview and
+    /// the video only when it's about to show them; the video must be a local file.
+    @available(iOS 26.0, *)
+    private func addAnimatedArtwork(to info: inout [String: Any], _ motion: (albumID: String, videos: MotionVideos)) {
+        let supported = MPNowPlayingInfoCenter.supportedAnimatedArtworkKeys
+        let cover = artworkImage
+        let variants: [(key: String, url: URL?, suffix: String, aspect: CGFloat)] = [
+            (MPNowPlayingInfoProperty1x1AnimatedArtwork, motion.videos.square, "1x1", 1),
+            (MPNowPlayingInfoProperty3x4AnimatedArtwork, motion.videos.tall, "3x4", 0.75),
+        ]
+        for variant in variants {
+            guard let hls = variant.url, supported.contains(variant.key) else { continue }
+            let id = "\(motion.albumID)-\(variant.suffix)"
+            let aspect = variant.aspect
+            info[variant.key] = MPMediaItemAnimatedArtwork(
+                artworkID: id,
+                previewImageRequestHandler: { _ in
+                    await MotionVideoFiles.shared.preview(id: id, fallback: cover, aspect: aspect)
+                },
+                videoAssetFileURLRequestHandler: { _ in
+                    await MotionVideoFiles.shared.localFile(for: hls, id: id)
+                }
+            )
+        }
+    }
+    #endif
 
     // MARK: - Persistence
 

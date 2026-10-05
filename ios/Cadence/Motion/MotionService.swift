@@ -1,5 +1,12 @@
 import Foundation
 
+/// Apple Music motion artwork comes in a square and a tall (3:4) variant.
+struct MotionVideos: Sendable, Codable, Hashable {
+    var square: URL?
+    var tall: URL?
+    var any: URL? { square ?? tall }
+}
+
 /// Animated ("motion") album artwork from the Apple Music catalog. Mirrors the
 /// desktop app: uses a pasted token or the token built into Apple's web player
 /// (fetched from music.apple.com and refreshed when it expires), finds the
@@ -12,7 +19,7 @@ actor MotionService {
         var token: String
         var storefront: String
 
-        var signature: String { "v3|\(autoToken ? "auto" : token)|\(storefront)" }
+        var signature: String { "v4|\(autoToken ? "auto" : token)|\(storefront)" }
     }
 
     private static let webAPI = "https://amp-api.music.apple.com/v1"
@@ -22,19 +29,26 @@ actor MotionService {
     private static let browserUA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15"
     private static let tokenKey = "motion.webToken"
     private static let cacheKey = "motion.cache"
-    private static let videoKeys = ["motionDetailSquare", "motionSquareVideo1x1", "motionDetailTall", "motionTallVideo3x4"]
+    private static let squareKeys = ["motionDetailSquare", "motionSquareVideo1x1"]
+    private static let tallKeys = ["motionDetailTall", "motionTallVideo3x4"]
 
     private var webToken: String? = UserDefaults.standard.string(forKey: MotionService.tokenKey)
 
     // MARK: public
 
+    /// HLS URL of the album's motion artwork (square preferred), for in-app display.
     func videoURL(albumID: String, album: String, artist: String, config: Config) async -> URL? {
+        await videos(albumID: albumID, album: album, artist: artist, config: config)?.any
+    }
+
+    /// Both variants of the album's motion artwork, if Apple has any.
+    func videos(albumID: String, album: String, artist: String, config: Config) async -> MotionVideos? {
         let key = "\(config.signature)|\(albumID)"
-        if let hit = cached(key) { return hit.url }
+        if let hit = cached(key) { return hit.videos }
         do {
-            let url = try await lookup(album: album, artist: artist, config: config)
-            store(key, url)
-            return url
+            let videos = try await lookup(album: album, artist: artist, config: config)
+            store(key, videos)
+            return videos
         } catch {
             return nil
         }
@@ -87,7 +101,7 @@ actor MotionService {
         return API(token: token, base: web ? Self.webAPI : Self.developerAPI, origin: web ? Self.webOrigin : nil, auto: false)
     }
 
-    private func lookup(album: String, artist: String, config: Config) async throws -> URL? {
+    private func lookup(album: String, artist: String, config: Config) async throws -> MotionVideos? {
         let client = try await self.api(for: config)
         do {
             return try await lookup(api: client, album: album, artist: artist, storefront: config.storefront)
@@ -97,7 +111,7 @@ actor MotionService {
         }
     }
 
-    private func lookup(api: API, album: String, artist: String, storefront: String) async throws -> URL? {
+    private func lookup(api: API, album: String, artist: String, storefront: String) async throws -> MotionVideos? {
         let sf = storefront.isEmpty ? "us" : storefront.lowercased()
         let term = "\(Self.words(artist).joined(separator: " ")) \(Self.splitTitle(album).base)"
         var search = URLComponents(string: "\(api.base)/catalog/\(sf)/search")!
@@ -128,14 +142,17 @@ actor MotionService {
         albums.queryItems = [URLQueryItem(name: "ids", value: ids.joined(separator: ",")), URLQueryItem(name: "extend", value: "editorialVideo")]
         let json = try await getJSON(albums.url!, api: api)
         let entries = json["data"] as? [[String: Any]] ?? []
+        func firstURL(_ video: [String: Any], _ keys: [String]) -> URL? {
+            for key in keys {
+                if let s = (video[key] as? [String: Any])?["video"] as? String, let url = URL(string: s) { return url }
+            }
+            return nil
+        }
         for id in ids {
             guard let entry = entries.first(where: { ($0["id"] as? String) == id }),
                   let video = (entry["attributes"] as? [String: Any])?["editorialVideo"] as? [String: Any] else { continue }
-            for key in Self.videoKeys {
-                if let urlString = (video[key] as? [String: Any])?["video"] as? String, let url = URL(string: urlString) {
-                    return url
-                }
-            }
+            let found = MotionVideos(square: firstURL(video, Self.squareKeys), tall: firstURL(video, Self.tallKeys))
+            if found.any != nil { return found }
         }
         return nil
     }
@@ -272,7 +289,7 @@ actor MotionService {
     // MARK: cache
 
     private struct Entry: Codable {
-        var url: URL?
+        var videos: MotionVideos?
         var time: Double
     }
 
@@ -281,15 +298,15 @@ actor MotionService {
               let all = try? JSONDecoder().decode([String: Entry].self, from: data),
               let hit = all[key] else { return nil }
         let age = Date().timeIntervalSince1970 - hit.time
-        return age < (hit.url == nil ? 3 : 14) * 86_400 ? hit : nil
+        return age < (hit.videos == nil ? 3 : 14) * 86_400 ? hit : nil
     }
 
-    private func store(_ key: String, _ url: URL?) {
+    private func store(_ key: String, _ videos: MotionVideos?) {
         var all: [String: Entry] = [:]
         if let data = UserDefaults.standard.data(forKey: Self.cacheKey) {
             all = (try? JSONDecoder().decode([String: Entry].self, from: data)) ?? [:]
         }
-        all[key] = Entry(url: url, time: Date().timeIntervalSince1970)
+        all[key] = Entry(videos: videos, time: Date().timeIntervalSince1970)
         if let data = try? JSONEncoder().encode(all) {
             UserDefaults.standard.set(data, forKey: Self.cacheKey)
         }
