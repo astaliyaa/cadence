@@ -105,15 +105,19 @@ export class Subsonic {
     return this.url("getCoverArt", { id, size });
   }
 
-  streamUrl(id: string, opts: { format?: string; maxBitRate?: number } = {}) {
+  /** `timeOffset` (whole seconds) starts a transcoded stream partway in (OpenSubsonic "transcodeOffset"). */
+  streamUrl(id: string, opts: { format?: string; maxBitRate?: number; timeOffset?: number } = {}) {
     const format = opts.format && opts.format !== "raw" ? opts.format : undefined;
     const transcoding = !!format || !!opts.maxBitRate;
+    const offset = transcoding && opts.timeOffset ? Math.floor(opts.timeOffset) : undefined;
     return this.url("stream", {
       id,
       format: format ?? (transcoding ? undefined : "raw"),
       maxBitRate: opts.maxBitRate || undefined,
-      // Lets the webview seek inside transcoded streams.
-      estimateContentLength: transcoding ? true : undefined,
+      timeOffset: offset,
+      // Gives the webview a length (and so a duration) for the transcode. The
+      // estimate covers the whole track, so it's left off streams that start later.
+      estimateContentLength: transcoding && !offset ? true : undefined,
     });
   }
 

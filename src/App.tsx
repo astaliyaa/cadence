@@ -122,8 +122,12 @@ function useSession() {
           useUI.getState().toast("Please sign in again");
         }
       });
-    client.extensions().then((ext) => useAuth.getState().setExtensions(ext));
-    initPlayer();
+    // The player restores the last position, which for transcoded streams needs
+    // to know whether the server can start a stream partway in.
+    client.extensions().then((ext) => {
+      useAuth.getState().setExtensions(ext);
+      initPlayer();
+    });
   }, []);
 }
 

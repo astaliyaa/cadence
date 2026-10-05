@@ -3,7 +3,7 @@ import type { Song } from "../api/types";
 import { api, useAuth } from "../store/auth";
 import { useSettings } from "../store/settings";
 import { useUI } from "../store/ui";
-import { engine } from "./engine";
+import { engine, type StreamOpts } from "./engine";
 import { songArtist } from "../lib/format";
 import { invokeQuiet } from "../lib/platform";
 
@@ -106,10 +106,25 @@ let fallbackFor: string | null = null;
 let preloadedFor: string | null = null;
 let autoplayLoading = false;
 
-function streamSrc(song: Song, forceTranscode = false) {
+function streamParams(forceTranscode: boolean): { format: string; maxBitRate: number } {
   const s = useSettings.getState();
-  if (forceTranscode) return api().streamUrl(song.id, { format: "mp3", maxBitRate: 320 });
-  return api().streamUrl(song.id, { format: s.streamFormat, maxBitRate: s.maxBitRate });
+  return forceTranscode ? { format: "mp3", maxBitRate: 320 } : { format: s.streamFormat, maxBitRate: s.maxBitRate };
+}
+
+function streamSrc(song: Song, forceTranscode = false) {
+  return api().streamUrl(song.id, streamParams(forceTranscode));
+}
+
+/** Lets the engine seek in transcoded streams, which the server sends without byte ranges. */
+function streamOpts(song: Song, forceTranscode = false): StreamOpts {
+  const params = streamParams(forceTranscode);
+  const transcoded = params.format !== "raw" || !!params.maxBitRate;
+  return {
+    duration: song.duration,
+    seekSrc: transcoded
+      ? (t) => (useAuth.getState().extensions.includes("transcodeOffset") ? api().streamUrl(song.id, { ...params, timeOffset: t }) : null)
+      : undefined,
+  };
 }
 
 function gainFor(song: Song, items: QueueItem[], index: number) {
@@ -136,7 +151,7 @@ export const usePlayer = create<PlayerState>((set, get) => {
     preloadedFor = null;
     if (!forceTranscode) fallbackFor = null;
     engine.setGain(gainFor(item.song, items, index));
-    engine.load(item.key, streamSrc(item.song, forceTranscode), { autoplay, startAt });
+    engine.load(item.key, streamSrc(item.song, forceTranscode), { autoplay, startAt, ...streamOpts(item.song, forceTranscode) });
     set({ duration: item.song.duration ?? 0, buffering: autoplay });
     pushMetadata(item.song);
   };
@@ -447,7 +462,7 @@ engine.on({
       const { items, index } = usePlayer.getState();
       const key = items[index].key;
       engine.setGain(gainFor(song, items, index));
-      engine.load(key, streamSrc(song, true), { autoplay: true, startAt: 0 });
+      engine.load(key, streamSrc(song, true), { autoplay: true, startAt: 0, ...streamOpts(song, true) });
       return;
     }
     errorStreak++;
@@ -481,7 +496,7 @@ setInterval(() => {
   const next = st.items[nextIdx];
   if (next && duration - t < 40 && preloadedFor !== next.key) {
     preloadedFor = next.key;
-    engine.preload(next.key, streamSrc(next.song));
+    engine.preload(next.key, streamSrc(next.song), streamOpts(next.song));
   }
 
   if (++posTimer % 10 === 0) localStorage.setItem(POS_KEY, String(t));
@@ -536,7 +551,7 @@ export async function initPlayer() {
   if (item && useAuth.getState().client && !engine.activeKey) {
     const pos = Number(localStorage.getItem(POS_KEY)) || 0;
     engine.setGain(gainFor(item.song, st.items, st.index));
-    engine.load(item.key, streamSrc(item.song), { autoplay: false, startAt: pos });
+    engine.load(item.key, streamSrc(item.song), { autoplay: false, startAt: pos, ...streamOpts(item.song) });
     lastTick = pos;
     usePlayer.setState({ duration: item.song.duration ?? 0 });
     pushMetadata(item.song);

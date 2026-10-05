@@ -2104,7 +2104,6 @@ div:has(> .tt-row.selected) + div > .tt-row::before {
 }
 .lyric-line:hover {
   background: rgba(255, 255, 255, 0.08);
-  transition-delay: 0s !important;
 }
 .lyric-line.active {
   color: #fff;

@@ -186,7 +186,7 @@ function sortAlbums(type, q) {
 function handle(endpoint, q) {
   switch (endpoint) {
     case "ping": return ok();
-    case "getOpenSubsonicExtensions": return ok({ openSubsonicExtensions: [{ name: "songLyrics", versions: [1] }, { name: "formPost", versions: [1] }] });
+    case "getOpenSubsonicExtensions": return ok({ openSubsonicExtensions: [{ name: "songLyrics", versions: [1] }, { name: "formPost", versions: [1] }, { name: "transcodeOffset", versions: [1] }] });
     case "getAlbumList2": {
       const size = Number(q.get("size") ?? 10), offset = Number(q.get("offset") ?? 0);
       return ok({ albumList2: { album: sortAlbums(q.get("type"), q).slice(offset, offset + size) } });
@@ -309,6 +309,18 @@ http
       const s = byId(songs, q.get("id"));
       if (!s) return res.writeHead(404).end();
       const buf = songWav(s);
+      // Like Navidrome: transcoded streams are piped from ffmpeg, so they have no
+      // byte ranges, but they honour timeOffset (the "transcodeOffset" extension).
+      const format = q.get("format");
+      if ((format && format !== "raw") || q.get("maxBitRate")) {
+        const skip = Math.min(buf.length - 44, Math.floor(Number(q.get("timeOffset") || 0) * 16000) * 2);
+        const data = buf.subarray(44 + skip);
+        const header = Buffer.from(buf.subarray(0, 44));
+        header.writeUInt32LE(36 + data.length, 4);
+        header.writeUInt32LE(data.length, 40);
+        res.writeHead(200, { "Content-Type": "audio/wav", "Accept-Ranges": "none", "Content-Length": 44 + data.length });
+        return res.end(Buffer.concat([header, data]));
+      }
       const range = req.headers.range?.match(/bytes=(\d*)-(\d*)/);
       if (range) {
         const start = Number(range[1] || 0);

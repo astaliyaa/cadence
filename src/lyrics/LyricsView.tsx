@@ -55,13 +55,21 @@ function SyncedLyrics({ lines: raw, variant }: { lines: LyricLine[]; variant: Pr
   const activeRef = useRef(-1);
   const boxRef = useRef<HTMLDivElement>(null);
   const lineRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const tops = useRef<number[]>([]);
+  const last = useRef({ active: -1, base: 0 });
+  // A clicked line stays highlighted until playback reaches it (the stream may
+  // restart a fraction of a second early).
+  const pinned = useRef<{ index: number; time: number } | null>(null);
   const userOffset = useRef(0);
   const userScrolling = useRef(false);
   const idleTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useFrame((t) => {
-    const i = findActive(lines, t);
+    let i = findActive(lines, t);
+    const pin = pinned.current;
+    if (pin) {
+      if (t + LEAD >= pin.time || t < pin.time - 3) pinned.current = null;
+      else i = pin.index;
+    }
     if (i !== activeRef.current) {
       activeRef.current = i;
       setActive(i);
@@ -74,16 +82,27 @@ function SyncedLyrics({ lines: raw, variant }: { lines: LyricLine[]; variant: Pr
     }
   });
 
+  const topOf = (i: number) => lineRefs.current[i]?.offsetTop ?? 0;
+
   const layout = (animate = true) => {
     const box = boxRef.current;
     if (!box) return;
     const anchor = box.clientHeight * (variant === "full" ? 0.36 : 0.28);
-    const a = Math.max(0, activeRef.current);
-    const base = anchor - (tops.current[a] ?? 0) + userOffset.current;
+    const active = activeRef.current;
+    const base = anchor - topOf(Math.max(0, active)) + userOffset.current;
+    // Apple Music's ripple: when the lyrics advance a line or two, lines further
+    // down set off a little later, so they only ever spread apart. Every other
+    // move (seeking, scrolling, going back) shifts all lines together, which
+    // keeps them from running into each other.
+    const advance = active - last.current.active;
+    const ripple = animate && !userScrolling.current && advance >= 1 && advance <= 2 && base < last.current.base;
+    last.current = { active, base };
     lineRefs.current.forEach((el, i) => {
       if (!el) return;
-      const dist = i - activeRef.current;
-      el.style.transitionDelay = !animate || userScrolling.current ? "0ms" : `${dist >= 0 ? Math.min(dist, 8) * 45 : 0}ms`;
+      const dist = i - active;
+      // Delay only the movement (transform, the first of the five transitioned
+      // properties in app.css), never colour, scale or the hover highlight.
+      el.style.transitionDelay = ripple && dist > 0 ? `${Math.min(dist, 8) * 45}ms, 0s, 0s, 0s, 0s` : "0s";
       el.style.transitionDuration = animate ? "" : "0ms";
       el.style.transform = `translate3d(0, ${base}px, 0)`;
       if (blurOn) {
@@ -93,23 +112,12 @@ function SyncedLyrics({ lines: raw, variant }: { lines: LyricLine[]; variant: Pr
     });
   };
 
-  const measure = () => {
-    tops.current = lineRefs.current.map((el) => el?.offsetTop ?? 0);
-  };
-
   useLayoutEffect(() => {
-    measure();
     layout(false);
-    const ro = new ResizeObserver(() => {
-      measure();
-      layout(false);
-    });
+    const ro = new ResizeObserver(() => layout(false));
     if (boxRef.current) ro.observe(boxRef.current);
     // Line heights change once the web font finishes loading.
-    document.fonts?.ready.then(() => {
-      measure();
-      layout(false);
-    });
+    document.fonts?.ready.then(() => layout(false));
     return () => ro.disconnect();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lines, blurOn]);
@@ -124,8 +132,8 @@ function SyncedLyrics({ lines: raw, variant }: { lines: LyricLine[]; variant: Pr
   const onWheel = (e: React.WheelEvent) => {
     userScrolling.current = true;
     boxRef.current?.classList.add("scrolling");
-    const total = tops.current[tops.current.length - 1] ?? 0;
-    const ta = tops.current[Math.max(0, activeRef.current)] ?? 0;
+    const total = topOf(lines.length - 1);
+    const ta = topOf(Math.max(0, activeRef.current));
     userOffset.current = Math.min(ta, Math.max(ta - total, userOffset.current - e.deltaY));
     layout(false);
     clearTimeout(idleTimer.current);
@@ -148,12 +156,16 @@ function SyncedLyrics({ lines: raw, variant }: { lines: LyricLine[]; variant: Pr
             }}
             className={`lyric-line${i === active ? " active" : i < active ? " past" : ""}${l.dots ? " dots" : ""}`}
             onClick={() => {
+              pinned.current = { index: i, time: l.time };
               seek(l.time);
               play();
               userScrolling.current = false;
               userOffset.current = 0;
               clearTimeout(idleTimer.current);
               boxRef.current?.classList.remove("scrolling");
+              activeRef.current = i;
+              setActive(i);
+              layout(true);
             }}
           >
             {l.dots ? (
