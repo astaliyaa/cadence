@@ -1,0 +1,58 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Cadence",
+  "version": "../package.json",
+  "identifier": "com.cadence.player",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [],
+    "macOSPrivateApi": true,
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "publisher": "Cadence",
+    "copyright": "Copyright © 2026 the Cadence authors",
+    "category": "Music",
+    "license": "MIT",
+    "licenseFile": "../LICENSE",
+    "shortDescription": "An Apple Music–style client for Navidrome",
+    "longDescription": "Cadence is a fast, native-feeling desktop music player for Navidrome servers, with an Apple Music–style interface, synced lyrics, animated album artwork and gapless playback.",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "webviewInstallMode": {
+        "type": "embedBootstrapper",
+        "silent": true
+      },
+      "nsis": {
+        "installMode": "currentUser",
+        "installerIcon": "icons/icon.ico",
+        "displayLanguageSelector": false,
+        "startMenuFolder": "Cadence"
+      }
+    },
+    "macOS": {
+      "minimumSystemVersion": "13.0",
+      "hardenedRuntime": true
+    },
+    "linux": {
+      "deb": {
+        "depends": ["libdbus-1-3"]
+      }
+    }
+  }
+}
